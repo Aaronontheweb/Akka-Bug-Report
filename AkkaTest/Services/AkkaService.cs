@@ -1,4 +1,5 @@
 using Akka.Actor;
+using Akka.Configuration;
 using Akka.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -9,6 +10,11 @@ public class AkkaService : IAkkaService, IHostedService
     private ActorSystem _actorSystem = null;
     private readonly string _customHocon;
     private readonly IServiceProvider _sp;
+    
+    // generate HOCON to ensure all test actors run on the default dispatcher
+    private static readonly Config Hocon = @"
+                                           akka.test.test-actor.dispatcher = akka.actor.default-dispatcher
+                                           ";
 
     public AkkaService(IServiceProvider sp, string customHocon)
     {
@@ -23,7 +29,7 @@ public class AkkaService : IAkkaService, IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         var bootstrap = _customHocon != null ?
-            BootstrapSetup.Create().WithConfig(_customHocon) :
+            BootstrapSetup.Create().WithConfig(Hocon.SafeWithFallback(_customHocon)) :
             BootstrapSetup.Create();
         var di = DependencyResolverSetup.Create(_sp);
         var actorSystemSetup = bootstrap.And(di);
